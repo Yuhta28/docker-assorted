@@ -1,3 +1,14 @@
+FROM ruby:2.6.1-stretch AS gemfiles
+
+WORKDIR /app
+
+# Install Gem
+COPY Gemfile Gemfile.lock ./
+RUN bundle install && \
+rm -rf \
+    $(gem contents wkhtmltopdf-binary | grep -E '_debian_$' ) \
+    "${GEM_HOME}/cache"
+
 FROM ruby:2.6.1-slim-stretch
 
 # Install packages
@@ -9,25 +20,10 @@ RUN apt-get update && \
         && \
     rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+# Take gemfiles
+COPY --from=gemfiles /usr/local/bundle/ /usr/local/bundle/
 
-# Install Gem
-COPY Gemfile Gemfile.lock ./
-RUN build_deps=" \
-         default-libmysqlclient-dev \
-         gcc \
-         make \
-    " && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends $build_deps && \
-    bundle install && \
-    rm -rf \
-        $(gem contents wkhtmltopdf-binary | grep -E '_debian_$' ) \
-        ~/.bundle/cache \
-        "${GEM_HOME}/cache" \
-        && \
-    apt-get remove -y --purge --autoremove $build_deps && \
-    rm -rf /var/lib/apt/lists/*
+WORKDIR /app
 
 # Copy Application
 COPY . ./
