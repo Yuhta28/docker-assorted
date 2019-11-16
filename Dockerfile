@@ -1,24 +1,28 @@
-FROM ruby:2.6.1-stretch AS gemfiles
+
+FROM ruby:2.6.1-alpine3.9 AS gemfiles
+
+# Install packages needed build
+RUN apk add --no-cache \
+        build-base \
+        mariadb-connector-c-dev
 
 WORKDIR /app
 
 # Install Gem
 COPY Gemfile Gemfile.lock ./
 RUN bundle install && \
-rm -rf \
-    $(gem contents wkhtmltopdf-binary | grep -E '_debian_$' ) \
-    "${GEM_HOME}/cache"
+    rm -rf "${GEM_HOME}/cache"
 
-FROM ruby:2.6.1-slim-stretch
+FROM ruby:2.6.1-alpine3.9
 
 # Install packages
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        fonts-ipaexfont \
-        libmariadbclient18 \
-        libssl1.0-dev  \
-        && \
-    rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache --repository http://dl-cdn.alpinelinux.org/alpline/edge/testing/ \
+        mariadb-connector-c
+RUN apk add --no-cache \
+        wkhtmltopdf
+
+# Install Japanese font(IPAex-font)
+RUN apk add --no-cache --repository http:dl-cdn.alpinelinux.org/alpline/edge/testing/font-ipa
 
 # Take gemfiles
 COPY --from=gemfiles /usr/local/bundle/ /usr/local/bundle/
