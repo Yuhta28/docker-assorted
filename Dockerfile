@@ -1,8 +1,18 @@
+# syntax=docker/dockerfile:1.0-experimental
 
-FROM ruby:2.6.1-alpine3.9 AS gemfiles
+FROM ruby:2.6.1-alpine3.9 AS base
+
+# Configure cached apk-file and get index
+RUN --mount=type=cache,id=apk,target=/var/cache/apk \
+    ln -s /var/cache/apk /etc/apk/cache && \
+    apk update
+
+
+FROM base AS gemfiles
 
 # Install packages needed build
-RUN apk add --no-cache \
+RUN --mount=type=cache,id=apk,target=/var/cache/apk  \
+    apk add \
         build-base \
         mariadb-connector-c-dev
 
@@ -10,19 +20,17 @@ WORKDIR /app
 
 # Install Gem
 COPY Gemfile Gemfile.lock ./
-RUN bundle install && \
-    rm -rf "${GEM_HOME}/cache"
+RUN --mount=type=cache,id=gem,target=/usr/local/bundle/cache  \
+    --mount=type=cache,id=bundle,target=/root/.bundle/cache   \
+    bundle install
 
-FROM ruby:2.6.1-alpine3.9
+FROM base
 
 # Install packages
-RUN apk add --no-cache --repository http://dl-cdn.alpinelinux.org/alpline/edge/testing/ \
-        mariadb-connector-c
-RUN apk add --no-cache \
-        wkhtmltopdf
-
-# Install Japanese font(IPAex-font)
-RUN apk add --no-cache --repository http:dl-cdn.alpinelinux.org/alpline/edge/testing/font-ipa
+RUN --mount=type=cache,id=apk,target=/var/cache/apk \
+   apk add  \
+         mariadb-connector-c  \
+         wkhtmltopdf 
 
 # Take gemfiles
 COPY --from=gemfiles /usr/local/bundle/ /usr/local/bundle/
