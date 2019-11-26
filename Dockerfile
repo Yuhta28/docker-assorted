@@ -24,13 +24,32 @@ RUN --mount=type=cache,id=gem,target=/usr/local/bundle/cache  \
     --mount=type=cache,id=bundle,target=/root/.bundle/cache   \
     bundle install
 
+FROM base AS fonts
+
+WORKDIR /tmp
+
+# Prepare to install IPAex-fonts
+ENV zip_basename=IPAexfont00201
+RUN --mount=type=cache,id=src,target=/tmp/src \
+  if [ ! -f src/${zip_basename}.zip ]; then \
+   wget -q https://ipafont.ipa.go.jp/IPAexfont/${zip_basename}.zip && \
+   mv ${zip_basename}.zip src/ ; \
+  fi && \
+  \
+  unzip src/${zip_basename}.zip && \
+  mv ${zip_basename} IPAexfont
+
 FROM base
 
 # Install packages
 RUN --mount=type=cache,id=apk,target=/var/cache/apk \
    apk add  \
          mariadb-connector-c  \
-         wkhtmltopdf 
+         wkhtmltopdf
+
+# Install fonts
+COPY --from=fonts /tmp/IPAexfont/*.ttf /usr/share/fonts/TTF/
+RUN fc-cache
 
 # Take gemfiles
 COPY --from=gemfiles /usr/local/bundle/ /usr/local/bundle/
